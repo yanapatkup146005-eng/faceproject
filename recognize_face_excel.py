@@ -7,6 +7,39 @@ import time
 from openpyxl import Workbook, load_workbook
 import os
 import winsound  # 🔊 ใช้สร้างเสียง beep (Windows เท่านั้น)
+import requests  # 📲 ใช้ส่ง LINE Messaging API
+
+# ============================
+# 📲 ตั้งค่า LINE Messaging API
+# วิธีดู:
+#   - CHANNEL_ACCESS_TOKEN: developers.line.biz → Messaging API → Channel access token
+#   - USER_ID: developers.line.biz → Basic settings → Your user ID
+# ============================
+CHANNEL_ACCESS_TOKEN = "/ao0C6kajOjekBAikP634dAjFLXXY/rIjtcCBdJc2Yh7dJq3SDiyRzeaPPGgfzY9a2i/ldgv/1eoGyc+cvXMOUlSecLPs5V1PcqeMvS7k7G5+7m8+LMpY9CuK/Rquoxic/yc9Jra14/XA78h9HHIZAdB04t89/1O/w1cDnyilFU="
+USER_ID = "U19c69c5705daeb65714cbdbd90c3ecd4"  # เริ่มด้วย U เช่น Uxxxxxxxx
+
+def send_line_message(message):
+    """ส่งข้อความแจ้งเตือนผ่าน LINE Messaging API (Push Message)"""
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "to": USER_ID,
+        "messages": [
+            {
+                "type": "text",
+                "text": message
+            }
+        ]
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=5)
+        if response.status_code != 200:
+            print(f"[LINE Error] {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"[LINE Error] {e}")
 
 # ============================
 # 🔥 โหลดโมเดล FaceNet
@@ -155,6 +188,16 @@ while True:
                 checked_today.add(key)
 
                 print(f"[CHECK-IN] {name} at {time_str}")
+
+                # ============================
+                # 📲 ส่งแจ้งเตือน LINE
+                # ============================
+                send_line_message(
+                    f"✅ เช็คชื่อสำเร็จ!\n"
+                    f"👤 ชื่อ: {name}\n"
+                    f"📅 วันที่: {today_date.strftime('%Y-%m-%d')}\n"
+                    f"🕐 เวลา: {time_str}"
+                )
 
                 # ============================
                 # 🔊 เล่นเสียงแจ้งเตือน
