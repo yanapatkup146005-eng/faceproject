@@ -8,18 +8,20 @@ from openpyxl import Workbook, load_workbook
 import os
 import winsound  # 🔊 ใช้สร้างเสียง beep (Windows เท่านั้น)
 import requests  # 📲 ใช้ส่ง LINE Messaging API
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)  # ซ่อน sklearn version warning
 
 # ============================
 # 📲 ตั้งค่า LINE Messaging API
 # วิธีดู:
 #   - CHANNEL_ACCESS_TOKEN: developers.line.biz → Messaging API → Channel access token
-#   - USER_ID: developers.line.biz → Basic settings → Your user ID
 # ============================
 CHANNEL_ACCESS_TOKEN = "/ao0C6kajOjekBAikP634dAjFLXXY/rIjtcCBdJc2Yh7dJq3SDiyRzeaPPGgfzY9a2i/ldgv/1eoGyc+cvXMOUlSecLPs5V1PcqeMvS7k7G5+7m8+LMpY9CuK/Rquoxic/yc9Jra14/XA78h9HHIZAdB04t89/1O/w1cDnyilFU="
-USER_ID = "U19c69c5705daeb65714cbdbd90c3ecd4"  # เริ่มด้วย U เช่น Uxxxxxxxx
-
+USER_ID = "U19c69c5705daeb65714cbdbd90c3ecd4"  # ใส่ USER_ID ของคุณ (ถ้าอยากส่งหาคนเดียว)
 def send_line_message(message):
-    """ส่งข้อความแจ้งเตือนผ่าน LINE Messaging API (Push Message)"""
+    """ส่งข้อความแจ้งเตือนผ่าน LINE Messaging API (Push)
+    → ส่งหาคนเดียวตาม USER_ID ที่ระบุ
+    """
     url = "https://api.line.me/v2/bot/message/push"
     headers = {
         "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}",
@@ -36,7 +38,9 @@ def send_line_message(message):
     }
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=5)
-        if response.status_code != 200:
+        if response.status_code == 200:
+            print(f"[LINE OK] Broadcast sent successfully")
+        else:
             print(f"[LINE Error] {response.status_code}: {response.text}")
     except Exception as e:
         print(f"[LINE Error] {e}")
@@ -169,6 +173,9 @@ while True:
         # ============================
         # 🔥 ระบบเช็คชื่อเข้าเรียน
         # ============================
+        # Debug: แสดง confidence ทุกครั้ง
+        print(f"[DEBUG] Detected: {name} | Confidence: {confidence:.2f} | Threshold: 0.90")
+
         if name != "Unknown":
 
             # สร้าง key กันซ้ำ (ชื่อ + วันที่)
@@ -182,7 +189,12 @@ while True:
 
                 # บันทึกลง Excel
                 ws.append([name, today_date.strftime("%Y-%m-%d"), time_str])
-                wb.save(excel_file)
+                try:
+                    wb.save(excel_file)
+                except PermissionError:
+                    print(f"[⚠️  WARNING] ไม่สามารถบันทึก {excel_file} ได้ → กรุณาปิด Excel ก่อนแล้วลองใหม่")
+                    ws._cells.popitem()  # เอา row ที่เพิ่งเพิ่มออก เพื่อไม่ให้ duplicate เมื่อบันทึกครั้งถัดไป
+                    checked_today.discard(key)  # รีเซ็ต key ให้ลองบันทึกใหม่ได้
 
                 # เพิ่มเข้า set กันซ้ำ
                 checked_today.add(key)
@@ -239,5 +251,9 @@ while True:
 # 🔥 ปิดกล้อง + เซฟไฟล์
 # ============================
 cap.release()
-wb.save(excel_file)
+try:
+    wb.save(excel_file)
+    print("✅ บันทึกข้อมูลลง Excel เรียบร้อยแล้ว")
+except PermissionError:
+    print(f"[⚠️  ERROR] ไม่สามารถบันทึก {excel_file} ได้ → กรุณาปิด Excel ก่อน แล้วรันโปรแกรมใหม่")
 cv2.destroyAllWindows()
